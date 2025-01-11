@@ -54,6 +54,27 @@ pub struct Character<'a> {
 
 impl Character<'_> {
     pub fn build_embed(self, text: String) -> serenity::CreateEmbed {
+        let mut description = String::new();
+        let mut in_asterisks = false;
+
+        for part in text.split('*') {
+            if in_asterisks {
+                description.push_str(&format!("*{}*", part));
+            } else {
+                let processed_part = self.replacements.iter().fold(
+                    self.case.apply(part),
+                    |acc, (pattern, replace)| {
+                        let re = regex::Regex::new(pattern).expect("Invalid regex pattern");
+                        re.replace_all(&acc, *replace).into_owned()
+                    },
+                );
+                description.push_str(&processed_part);
+            }
+            in_asterisks = !in_asterisks;
+        }
+
+
+
         serenity::CreateEmbed::new()
             .title(self.username)
             .footer(serenity::CreateEmbedFooter::new(self.name))
@@ -61,13 +82,7 @@ impl Character<'_> {
                 u32::from_str_radix(&self.color[2..], 16).expect("Invalid hex string"),
             ))
             .thumbnail(self.image_url)
-            .description(self.replacements.iter().fold(
-                self.case.apply(&text),
-                |acc, (pattern, replace)| {
-                    let re = regex::Regex::new(pattern).expect("Invalid regex pattern");
-                    re.replace_all(&acc, *replace).into_owned()
-                },
-            ))
+            .description(description)
     }
 }
 
