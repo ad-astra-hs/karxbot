@@ -1,62 +1,11 @@
+mod characters;
+
+use characters::characters;
 use poise::serenity_prelude as serenity;
 
 struct Data {}
-type Error=Box<dyn std::error::Error + Send + Sync>;
+type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
-
-fn characters() -> Vec<Character<'static>> {
-    vec![
-        Character {
-            name: "Mixiek Kakkki",
-            username: "sylphesterStallone",
-            alias: "ss",
-            replacements: vec![
-                ("s|S", "$"),
-                ("\"|,", ",,"),
-                ("\\.|'", ","),
-                ("(.+? .+?)( .+)", "$1,,$2"),
-            ],
-            color: "0xA1A100",
-            image_url: "",
-        },
-        Character {
-            name: "Karxol Koomaa",
-            username: "supernovaFruitcake",
-            alias: "sf",
-            replacements: vec![
-                ("ck", "%"),
-                ("k|%", "kk"),
-                ("$", "."),
-            ],
-            color: "0x005682",
-            image_url: "",
-        },
-    ]
-}
-
-#[derive(Clone)]
-struct Character<'a> {
-    pub name: &'a str,
-    pub username: &'a str,
-    pub alias: &'a str,
-    pub replacements: Vec<(&'a str,&'a str)>,
-    pub color: &'a str,
-    pub image_url: &'a str,
-}
-
-impl Character<'_> {
-    fn build_embed(self, text: String) -> serenity::CreateEmbed {
-        serenity::CreateEmbed::new()
-            .title(self.username)
-            .footer(serenity::CreateEmbedFooter::new(self.name))
-            .colour(serenity::Colour(u32::from_str_radix(&self.color[2..], 16).expect("Invalid hex string")))
-            .thumbnail(self.image_url)
-            .description(self.replacements.iter().fold(text, |acc, (pattern, replace)| {
-                let re = regex::Regex::new(pattern).expect("Invalid regex pattern");
-                re.replace_all(&acc, *replace).into_owned()
-            }))
-    }
-}
 
 #[poise::command(slash_command)]
 async fn say(
@@ -65,8 +14,30 @@ async fn say(
     #[description = "Message to send"] text: String,
 ) -> Result<(), Error> {
     let characters = characters();
-    let character = characters.iter().find(|c| c.alias == alias).ok_or("Character not found")?;
+    let character = characters
+        .iter()
+        .find(|c| c.alias == alias)
+        .ok_or("Character not found! Use `/list` for a list of available characters.")?;
     let embed = character.clone().build_embed(text);
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+async fn list(ctx: Context<'_>) -> Result<(), Error> {
+    let characters = characters();
+    let embed = serenity::CreateEmbed::default().title("Characters").fields(
+        characters
+            .iter()
+            .map(|c| {
+                (
+                    format!("{} {}", c.emoji, c.name),
+                    format!("Alias: `{}`", c.alias),
+                    true,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
@@ -78,7 +49,7 @@ async fn main() {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![say()],
+            commands: vec![say(), list()],
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
