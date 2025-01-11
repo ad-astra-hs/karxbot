@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  shancord:
+    build: .
+    container_name: karxbot
+    restart: always
+    env_file:
+        -   .env
+    volumes:
+    - ./last_used:/last_used
