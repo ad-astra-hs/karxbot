@@ -13,6 +13,7 @@ fn store_last_used(uid: u64, alias: &str) {
         .create(true)
         .open(format!("last_used/{}.txt", uid))
         .unwrap();
+    file.set_len(0).unwrap();
     std::io::Write::write_all(&mut file, alias.as_bytes()).unwrap();
 }
 

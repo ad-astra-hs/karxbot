@@ -83,7 +83,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x000000",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Malfaz%20Zoleum.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:MalfazZoleum:1327671682936340591>",
             case: Case::Inverted,
         },
         Character {
@@ -96,7 +96,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0xA10000",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Jozlyn%20Caluma.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:JozlynCaluma:1327671634575757486>",
             case: Case::Title,
         },
         Character {
@@ -110,7 +110,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0xA15000",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Febrez%20Galvan.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:FebrezGalvan:1327671624266420234>",
             case: Case::Upper,
         },
         Character {
@@ -125,7 +125,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0xA1A100",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Mixiek%20Kakkki.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:MixiekKakkki:1327671694365687888>",
             case: Case::Lower,
         },
         Character {
@@ -140,7 +140,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0xE8E741",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Eletra%20Zolage.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:EletraZolage:1327671614715855004>",
             case: Case::None,
         },
         Character {
@@ -152,7 +152,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x626262",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Liaaam%20Galagr.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:LiaaamGalagr:1327671671452074056>",
             case: Case::Lower,
         },
         Character {
@@ -164,7 +164,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x416600",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Pennee%20Lechap.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:PenneeLechap:1327671717744611449>",
             case: Case::None,
         },
         Character {
@@ -177,7 +177,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x008141",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Artyis%20Avelho.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:ArtyisAvelho:1327671589424332962>",
             case: Case::None,
         },
         Character {
@@ -191,7 +191,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x008282",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Lavena%20Perazi.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:LavenaPerazi:1327671662140981278>",
             case: Case::None,
         },
         Character {
@@ -206,7 +206,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x005682",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Karxol%20Koomaa.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:KarxolKoomaa:1327671648861818992>",
             case: Case::Lower,
         },
         Character {
@@ -225,7 +225,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x000056",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Tohbra%20Corrah.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:TohbraCorrah:1327671731900383242>",
             case: Case::Title,
         },
         Character {
@@ -239,7 +239,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x2B0057",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Birsha%20Orobas.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:BirshaOrobas:1327671606289367090>",
             case: Case::None,
         },
         Character {
@@ -248,6 +248,8 @@ pub fn characters() -> Vec<Character<'static>> {
             alias: "re",
             replacements: vec![
                 ("\\.", ".~"),
+                ("\\?", "?~"),
+                ("\\!", "!~"),
                 ("$", ".~"),
                 ("A", "a"),
                 ("E", "e"),
@@ -259,7 +261,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x6A006A",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Tsoray%20Vodnik.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:TsorayVodnik:1327671743069949954>",
             case: Case::Upper,
         },
         Character {
@@ -271,7 +273,7 @@ pub fn characters() -> Vec<Character<'static>> {
             ],
             color: "0x77003C",
             image_url: "https://gitlab.com/ad-astra-hs/karxbot/-/raw/main/sprites/Paiyuu%20Rowena.png?ref_type=heads",
-            emoji: "",
+            emoji: "<:PaiyuuRowena:1327671705031803002>",
             case: Case::None,
         },
     ]
