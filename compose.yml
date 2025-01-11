@@ -1,8 +1,8 @@
 version: "3.9"
 services:
-  shancord:
+  karxbot:
     build: .
-    container_name: karxbot
+    container_name: bot
     restart: always
     env_file:
         -   .env
