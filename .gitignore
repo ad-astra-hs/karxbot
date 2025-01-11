@@ -1,1 +1,3 @@
 /target
+last_used/*
+!last_used/.*

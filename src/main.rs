@@ -7,12 +7,36 @@ struct Data {}
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
+fn store_last_used(uid: u64, alias: &str) {
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(format!("last_used/{}.txt", uid))
+        .unwrap();
+    std::io::Write::write_all(&mut file, alias.as_bytes()).unwrap();
+}
+
+fn read_last_used(uid: u64) -> Option<String> {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .open(format!("last_used/{}.txt", uid))
+        .ok()?;
+    let mut reader = std::io::BufReader::new(file);
+    let mut alias = String::new();
+    std::io::Read::read_to_string(&mut reader, &mut alias).ok()?;
+    Some(alias)
+}
+
 #[poise::command(slash_command)]
 async fn say(
     ctx: Context<'_>,
-    #[description = "Character to send as"] alias: String,
+    #[description = "Character to send as"] alias: Option<String>,
     #[description = "Message to send"] text: String,
 ) -> Result<(), Error> {
+    if let Some(a) = &alias {
+        store_last_used(ctx.author().id.get(), a);
+    }
+    let alias = alias.unwrap_or_else(|| read_last_used(ctx.author().id.get()).unwrap_or_default());
     let characters = characters();
     let character = characters
         .iter()
