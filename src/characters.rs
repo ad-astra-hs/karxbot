@@ -57,23 +57,25 @@ impl Character<'_> {
         let mut description = String::new();
         let mut in_asterisks = false;
 
-        for part in text.split('*') {
-            if in_asterisks {
-                description.push_str(&format!("*{}*", part));
-            } else {
-                let processed_part = self.replacements.iter().fold(
-                    self.case.apply(part),
-                    |acc, (pattern, replace)| {
-                        let re = regex::Regex::new(pattern).expect("Invalid regex pattern");
-                        re.replace_all(&acc, *replace).into_owned()
-                    },
-                );
-                description.push_str(&processed_part);
+        if text.starts_with('*') && text.ends_with('*') && text.matches('*').count() == 2 {
+            description.push_str(&text);
+        } else {
+            for part in text.split('*') {
+                if in_asterisks {
+                    description.push_str(&format!("*{}*", part));
+                } else {
+                    let processed_part = self.replacements.iter().fold(
+                        self.case.apply(part),
+                        |acc, (pattern, replace)| {
+                            let re = regex::Regex::new(pattern).expect("Invalid regex pattern");
+                            re.replace_all(&acc, *replace).into_owned()
+                        },
+                    );
+                    description.push_str(&processed_part);
+                }
+                in_asterisks = !in_asterisks;
             }
-            in_asterisks = !in_asterisks;
         }
-
-
 
         serenity::CreateEmbed::new()
             .title(self.username)
