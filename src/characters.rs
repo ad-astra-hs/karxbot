@@ -78,9 +78,6 @@ impl Character<'_> {
                     description.push_str(&processed_part);
                 }
                 in_asterisks = !in_asterisks;
-                if parts.peek().is_none() && in_asterisks {
-                    description.push('*');
-                }
             }
         }
 
