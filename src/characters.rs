@@ -58,25 +58,29 @@ impl Character<'_> {
         let mut in_asterisks = false;
         let text = text.trim();
 
-        let mut parts = text.split('*').peekable();
-        while let Some(part) = parts.next() {
-            if in_asterisks {
-                description.push_str(&format!("*{}*", part));
-            } else if part.trim().is_empty() {
-                continue;
-            } else {
-                let processed_part = self.replacements.iter().fold(
-                    self.case.apply(part),
-                    |acc, (pattern, replace)| {
-                        let re = regex::Regex::new(pattern).expect("Invalid regex pattern");
-                        re.replace_all(&acc, *replace).into_owned()
-                    },
-                );
-                description.push_str(&processed_part);
-            }
-            in_asterisks = !in_asterisks;
-            if parts.peek().is_none() && in_asterisks {
-                description.push('*');
+        if text.starts_with('*') && text.ends_with('*') && text.matches('*').count() == 2 {
+            description.push_str(text);
+        } else {
+            let mut parts = text.split('*').peekable();
+            while let Some(part) = parts.next() {
+                if in_asterisks {
+                    description.push_str(&format!("*{}*", part));
+                } else if part.trim().is_empty() {
+                    continue;
+                } else {
+                    let processed_part = self.replacements.iter().fold(
+                        self.case.apply(part),
+                        |acc, (pattern, replace)| {
+                            let re = regex::Regex::new(pattern).expect("Invalid regex pattern");
+                            re.replace_all(&acc, *replace).into_owned()
+                        },
+                    );
+                    description.push_str(&processed_part);
+                }
+                in_asterisks = !in_asterisks;
+                if parts.peek().is_none() && in_asterisks {
+                    description.push('*');
+                }
             }
         }
 
