@@ -48,7 +48,7 @@ async fn say(
     Ok(())
 }
 
-#[poise::command(slash_command)]
+#[poise::command(slash_command, rename="do")]
 async fn do_(
     ctx: Context<'_>,
     #[description = "Character to send as"] alias: Option<String>,
