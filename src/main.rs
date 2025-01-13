@@ -43,7 +43,27 @@ async fn say(
         .iter()
         .find(|c| c.alias == alias)
         .ok_or("Character not found! Use `/list` for a list of available characters.")?;
-    let embed = character.clone().build_embed(text);
+    let embed = character.clone().build_embed(text, false);
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+async fn do_(
+    ctx: Context<'_>,
+    #[description = "Character to send as"] alias: Option<String>,
+    #[description = "Message to send"] text: String,
+) -> Result<(), Error> {
+    if let Some(a) = &alias {
+        store_last_used(ctx.author().id.get(), a);
+    }
+    let alias = alias.unwrap_or_else(|| read_last_used(ctx.author().id.get()).unwrap_or_default());
+    let characters = characters();
+    let character = characters
+        .iter()
+        .find(|c| c.alias == alias)
+        .ok_or("Character not found! Use `/list` for a list of available characters.")?;
+    let embed = character.clone().build_embed(text, true);
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
@@ -74,7 +94,7 @@ async fn main() {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![say(), list()],
+            commands: vec![say(), do_(), list()],
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
