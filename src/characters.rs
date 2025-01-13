@@ -56,6 +56,7 @@ impl Character<'_> {
     pub fn build_embed(self, text: String) -> serenity::CreateEmbed {
         let mut description = String::new();
         let mut in_asterisks = false;
+        let text = text.trim();
 
         if text.starts_with('*') && text.ends_with('*') && text.matches('*').count() == 2 {
             description.push_str(&text);
@@ -63,6 +64,8 @@ impl Character<'_> {
             for part in text.split('*') {
                 if in_asterisks {
                     description.push_str(&format!("*{}*", part));
+                } else if part.trim().is_empty() {
+                    continue;
                 } else {
                     let processed_part = self.replacements.iter().fold(
                         self.case.apply(part),
