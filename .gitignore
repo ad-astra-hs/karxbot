@@ -2,3 +2,4 @@
 last_used/*
 !last_used/.*
 .env
+config.toml

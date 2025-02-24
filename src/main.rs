@@ -36,21 +36,24 @@ async fn say(
     #[description = "Send as action"] action: Option<bool>,
 ) -> Result<(), Error> {
     ctx.defer().await?;
+
     if let Some(a) = &alias {
         store_last_used(ctx.author().id.get(), a);
     }
+
     let alias = alias.unwrap_or_else(|| read_last_used(ctx.author().id.get()).unwrap_or_default());
     let characters = characters();
+
     let character = characters
         .iter()
         .find(|c| c.alias == alias)
         .ok_or("Character not found! Use `/list` for a list of available characters.")?;
-    let action = match action {
-        Some(true) => true,
-        _ => false,
-    };
+
+    let action = matches!(action, Some(true));
+
     let embed = character.clone().build_embed(text, action);
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
+
     Ok(())
 }
 
