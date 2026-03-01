@@ -103,7 +103,7 @@ impl Character {
         let description = if paragraph {
             QUOTE_RE
                 .replace_all(&text, |caps: &regex::Captures| {
-                    format!("\"{}\"", apply_transform(&caps[1]))
+                    format!("**\"{}\"**", apply_transform(&caps[1]))
                 })
                 .to_string()
         } else {
