@@ -1,1 +1,6 @@
 target/
+data/
+.git/
+.env
+.claude/
+last_used/

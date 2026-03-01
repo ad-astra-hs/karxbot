@@ -1,5 +1,5 @@
 /target
-last_used/*
-!last_used/.*
+/data
+!/data/.gitkeep
 .env
 config.toml

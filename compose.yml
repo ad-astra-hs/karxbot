@@ -1,10 +1,9 @@
-version: "3.9"
 services:
   karxbot:
     build: .
     container_name: bot
     restart: always
     env_file:
-        -   .env
+      - .env
     volumes:
-    - ./last_used:/last_used
+      - ./data:/app/data
