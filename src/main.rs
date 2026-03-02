@@ -1,9 +1,16 @@
 mod characters;
+mod dialogue;
 
 use characters::{load_characters, Character};
+use dialogue::{
+    add_message, cleanup_expired_sessions, create_session, delete_session, get_all_messages,
+    get_spoiler_labels, has_active_session, init_sessions_table,
+};
 use poise::serenity_prelude as serenity;
+use regex::Regex;
 use rusqlite::Connection;
 use std::sync::Mutex;
+use std::time::Duration;
 
 struct Data {
     db: Mutex<Connection>,
@@ -21,7 +28,9 @@ fn init_db(conn: &Connection) {
             paragraph_mode INTEGER NOT NULL DEFAULT 0
         );",
     )
-    .expect("Failed to initialise database");
+    .expect("Failed to initialise user_settings table");
+    
+    init_sessions_table(conn);
 }
 
 fn store_last_used(conn: &Connection, uid: u64, alias: &str) -> Result<(), rusqlite::Error> {
@@ -133,27 +142,343 @@ async fn list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Start a dialogue session to collect MSPFA-formatted dialogue
+#[poise::command(slash_command)]
+async fn dialogue(
+    ctx: Context<'_>,
+    #[description = "Spoiler open label (default: Dialogue)"] open: Option<String>,
+    #[description = "Spoiler close label (default: Close Dialogue)"] close: Option<String>,
+) -> Result<(), Error> {
+    let user_id = ctx.author().id.get();
+    let channel_id = ctx.channel_id().get();
+    
+    let spoiler_open = open.unwrap_or_else(|| "Dialogue".to_string());
+    let spoiler_close = close.unwrap_or_else(|| "Close Dialogue".to_string());
+    
+    {
+        let db = ctx.data().db.lock().unwrap();
+        create_session(
+            &db, 
+            user_id, 
+            channel_id, 
+            spoiler_open.clone(), 
+            spoiler_close.clone()
+        )?;
+    }
+    
+    let components = vec![serenity::CreateActionRow::Buttons(vec![
+        serenity::CreateButton::new("finish_dialogue")
+            .label("Finish Dialogue")
+            .style(serenity::ButtonStyle::Success),
+        serenity::CreateButton::new("cancel_dialogue")
+            .label("Cancel")
+            .style(serenity::ButtonStyle::Danger),
+    ])];
+    
+    let embed = serenity::CreateEmbed::new()
+        .title("🎭 Dialogue Mode Active")
+        .description(format!(
+            "Type your dialogue lines in this channel. Format: `AB: Your dialogue here`
+            
+            **Spoiler Labels:** Open: `{}` | Close: `{}`
+            
+            Click **Finish Dialogue** when done, or **Cancel** to discard.
+            
+            *This session expires in 5 minutes.*",
+            spoiler_open, spoiler_close
+        ))
+        .color(serenity::Colour::from_rgb(88, 101, 242));
+    
+    ctx.send(
+        poise::CreateReply::default()
+            .embed(embed)
+            .components(components)
+            .ephemeral(true),
+    )
+    .await?;
+    
+    Ok(())
+}
+
+fn parse_dialogue_line(line: &str) -> Result<(String, String), String> {
+    if line.len() < 4 {
+        return Err("Line too short".to_string());
+    }
+    
+    let alias = line[0..2].to_ascii_lowercase();
+    let text = line[4..].trim();
+    
+    if text.is_empty() {
+        return Err("Empty dialogue text".to_string());
+    }
+    
+    Ok((alias, text.to_string()))
+}
+
+fn apply_character_formatting(text: &str, character: &Character) -> String {
+    let mut result = text.to_string();
+    
+    // Apply replacements using regex
+    for replacement in &character.replacements {
+        if replacement.len() >= 2 {
+            if let Ok(re) = Regex::new(&replacement[0]) {
+                result = re.replace_all(&result, replacement[1].as_str()).to_string();
+            }
+        }
+    }
+    
+    // Apply case transformation
+    character.case.apply(&result)
+}
+
+fn generate_mspfa_dialogue(
+    messages: &[String],
+    characters: &[Character],
+    spoiler_open: &str,
+    spoiler_close: &str,
+) -> Result<String, String> {
+    let mut dialogue_lines = Vec::new();
+    
+    for line in messages {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        
+        let (alias, text) = match parse_dialogue_line(trimmed) {
+            Ok(result) => result,
+            Err(_) => continue,
+        };
+        
+        let character = characters
+            .iter()
+            .find(|c| c.alias.to_ascii_lowercase() == alias)
+            .ok_or_else(|| format!("Character with alias '{}' not found", alias))?;
+        
+        let formatted_text = apply_character_formatting(&text, character);
+        
+        // Ensure color starts with # for MSPFA format
+        let color = if character.color.starts_with("0x") {
+            character.color.replace("0x", "#")
+        } else if !character.color.starts_with("#") {
+            format!("#{}", character.color)
+        } else {
+            character.color.clone()
+        };
+        
+        let line_output = format!(
+            "[alt={}][color={}]{}: {}[/color][/alt]",
+            text,
+            color,
+            alias.to_uppercase(),
+            formatted_text
+        );
+        
+        dialogue_lines.push(line_output);
+    }
+    
+    if dialogue_lines.is_empty() {
+        return Err("No valid dialogue lines found".to_string());
+    }
+    
+    let spoiler_content = dialogue_lines.join("\n");
+    let result = format!(
+        r#"[spoiler open="{}" close="{}"]
+{}
+[/spoiler]"#,
+        spoiler_open, spoiler_close, spoiler_content
+    );
+    
+    Ok(result)
+}
+
+async fn handle_button_interaction(
+    ctx: &serenity::Context,
+    interaction: &serenity::ComponentInteraction,
+    data: &Data,
+) -> Result<(), Error> {
+    let user_id = interaction.user.id.get();
+    let channel_id = interaction.channel_id.get();
+    
+    match interaction.data.custom_id.as_str() {
+        "finish_dialogue" => {
+            // Check session and get data without holding lock across await
+            let session_data = {
+                let db = data.db.lock().unwrap();
+                if !has_active_session(&db, user_id, channel_id) {
+                    None
+                } else {
+                    let messages = get_all_messages(&db, user_id, channel_id);
+                    let labels = get_spoiler_labels(&db, user_id, channel_id);
+                    Some((messages, labels))
+                }
+            };
+            
+            let (messages, labels) = match session_data {
+                Some((Some(msgs), Some(lbls))) => (msgs, lbls),
+                _ => {
+                    interaction
+                        .create_response(
+                            ctx,
+                            serenity::CreateInteractionResponse::Message(
+                                serenity::CreateInteractionResponseMessage::new()
+                                    .content("❌ No active dialogue session found. Start one with `/dialogue`.")
+                                    .ephemeral(true),
+                            ),
+                        )
+                        .await?;
+                    return Ok(());
+                }
+            };
+            
+            let (spoiler_open, spoiler_close) = labels;
+            
+            // Generate output
+            match generate_mspfa_dialogue(&messages, &data.characters, &spoiler_open, &spoiler_close) {
+                Ok(output) => {
+                    // Delete session
+                    {
+                        let db = data.db.lock().unwrap();
+                        delete_session(&db, user_id, channel_id)?;
+                    }
+                    
+                    let code_block = format!("```\n{}\n```", output);
+                    
+                    interaction
+                        .create_response(
+                            ctx,
+                            serenity::CreateInteractionResponse::Message(
+                                serenity::CreateInteractionResponseMessage::new()
+                                    .content(code_block),
+                            ),
+                        )
+                        .await?;
+                }
+                Err(e) => {
+                    interaction
+                        .create_response(
+                            ctx,
+                            serenity::CreateInteractionResponse::Message(
+                                serenity::CreateInteractionResponseMessage::new()
+                                    .content(format!("❌ Error generating dialogue: {}", e))
+                                    .ephemeral(true),
+                            ),
+                        )
+                        .await?;
+                }
+            }
+        }
+        "cancel_dialogue" => {
+            {
+                let db = data.db.lock().unwrap();
+                delete_session(&db, user_id, channel_id)?;
+            }
+            
+            interaction
+                .create_response(
+                    ctx,
+                    serenity::CreateInteractionResponse::Message(
+                        serenity::CreateInteractionResponseMessage::new()
+                            .content("✅ Dialogue session cancelled.")
+                            .ephemeral(true),
+                    ),
+                )
+                .await?;
+        }
+        _ => {}
+    }
+    
+    Ok(())
+}
+
+async fn handle_message(
+    _ctx: &serenity::Context,
+    msg: &serenity::Message,
+    data: &Data,
+) -> Result<(), Error> {
+    // Ignore bot messages
+    if msg.author.bot {
+        return Ok(());
+    }
+    
+    let user_id = msg.author.id.get();
+    let channel_id = msg.channel_id.get();
+    
+    let db = data.db.lock().unwrap();
+    
+    if !has_active_session(&db, user_id, channel_id) {
+        return Ok(());
+    }
+    
+    add_message(&db, user_id, channel_id, msg.content.clone())?;
+    
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
-    let intents = serenity::GatewayIntents::non_privileged();
+    let intents = serenity::GatewayIntents::non_privileged()
+        | serenity::GatewayIntents::MESSAGE_CONTENT
+        | serenity::GatewayIntents::GUILD_MESSAGES;
 
-    let conn = Connection::open("data/karxbot.db").expect("Failed to open database");
-    init_db(&conn);
-    let db = Mutex::new(conn);
+    // Initialize database (setup will create the actual connection)
+    {
+        let conn = Connection::open("data/karxbot.db").expect("Failed to open database");
+        init_db(&conn);
+    }
 
     let characters = load_characters();
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![say(), paragraph(), list()],
+            commands: vec![say(), paragraph(), list(), dialogue()],
+            event_handler: |ctx, event, _framework, data| {
+                Box::pin(async move {
+                    match event {
+                        serenity::FullEvent::InteractionCreate { interaction, .. } => {
+                            if let serenity::Interaction::Component(component) = interaction {
+                                handle_button_interaction(ctx, component, data).await?;
+                            }
+                        }
+                        serenity::FullEvent::Message { new_message } => {
+                            handle_message(ctx, new_message, data).await?;
+                        }
+                        _ => {}
+                    }
+                    Ok(())
+                })
+            },
             ..Default::default()
         })
-        .setup(|ctx, _ready, framework| {
-            Box::pin(async move {
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(Data { db, characters })
-            })
+        .setup({
+            let characters = characters.clone();
+            move |ctx, _ready, framework| {
+                Box::pin(async move {
+                    poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                    
+                    // Start cleanup task
+                    tokio::spawn(async move {
+                        let mut interval = tokio::time::interval(Duration::from_secs(60));
+                        loop {
+                            interval.tick().await;
+                            if let Ok(conn) = Connection::open("data/karxbot.db") {
+                                if let Ok(count) = cleanup_expired_sessions(&conn) {
+                                    if count > 0 {
+                                        println!("Cleaned up {} expired dialogue sessions", count);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    let conn = Connection::open("data/karxbot.db")?;
+                    Ok(Data { 
+                        db: Mutex::new(conn), 
+                        characters 
+                    })
+                })
+            }
         })
         .build();
 

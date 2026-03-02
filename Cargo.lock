@@ -1321,6 +1321,7 @@ dependencies = [
  "regex",
  "rusqlite",
  "serde",
+ "serde_json",
  "serenity",
  "tokio",
 ]
