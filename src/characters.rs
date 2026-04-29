@@ -7,8 +7,10 @@ use figment::{
 use poise::serenity_prelude as serenity;
 use serde::Deserialize;
 
-static QUOTE_RE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r#""([^"]*)""#).unwrap());
+static QUOTE_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r#"[\u{0022}\u{201C}\u{201D}]([^\u{0022}\u{201C}\u{201D}]*)[\u{0022}\u{201C}\u{201D}]"#)
+        .unwrap()
+});
 static ACTION_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\*([^*]*)\*").unwrap());
 
